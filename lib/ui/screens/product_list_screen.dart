@@ -28,19 +28,25 @@ class _ProductListScreenState extends State<ProductListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Product List"),
+        actions: [
+          IconButton(onPressed: (){ _getProductList(); }, icon: const Icon(Icons.refresh))
+        ],
       ),
-      body: Visibility(
-        visible: _getProductListInProgress == false,
-        replacement: const Center(
-          child: CircularProgressIndicator(),
-        ),
-        child: ListView.builder(
-          itemCount: productList.length,
-            itemBuilder: (context, index){
-              return ProductItem(
-                product: productList[index],
-              );
-            }
+      body: RefreshIndicator(
+        onRefresh: () async { _getProductList(); },
+        child: Visibility(
+          visible: _getProductListInProgress == false,
+          replacement: const Center(
+            child: CircularProgressIndicator(),
+          ),
+          child: ListView.builder(
+            itemCount: productList.length,
+              itemBuilder: (context, index){
+                return ProductItem(
+                  product: productList[index],
+                );
+              }
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
@@ -51,7 +57,34 @@ class _ProductListScreenState extends State<ProductListScreen> {
     );
   }
 
+  Future<void> _deleteProduct(String productId) async {
+    final Uri uri = Uri.parse('https://crud.teamrabbil.com/api/v1/DeleteProduct/productid');
+    final Response response = await delete(uri);
+
+    if (response.statusCode == 200) {
+      final decodedData = jsonDecode(response.body);
+      if (decodedData['status'] == 'success') {
+        // Remove the product from the local list
+        productList.removeWhere((product) => product.id == productId);
+
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Product deleted successfully')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete product')),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${response.statusCode}')),
+      );
+    }
+  }
+
   Future<void> _getProductList() async{
+    productList.clear();
     _getProductListInProgress = true;
     Uri uri = Uri.parse('https://crud.teamrabbil.com/api/v1/ReadProduct');
     Response response = await get(uri);
